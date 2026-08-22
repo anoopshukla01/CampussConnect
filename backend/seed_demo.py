@@ -48,8 +48,11 @@ app = create_app()
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 COLLEGE_CODE = "IERT2025"
-BRANCH = "CT"        # Computer Technology — matches existing students
+BRANCH = "Computer Science"
+BRANCHES = ["Computer Science", "CT"]
 SEMESTER = 6
+DEMO_PASSWORD = "Campus@123"
+
 
 # IERT Allahabad coordinates (main block geofence)
 CLASSROOMS = [
@@ -58,9 +61,7 @@ CLASSROOMS = [
     {"room": "CS-303", "lat": 25.4488, "lng": 81.8460, "radius": 30.0},
 ]
 
-# Today's weekday name for timetable slots
-WEEKDAY_FULL = datetime.now().strftime("%A")   # e.g. "Saturday"
-WEEKDAY_SHORT = WEEKDAY_FULL[:3]               # e.g. "Sat"
+DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 SUBJECTS = [
     {"name": "Operating Systems",     "code": "CT601"},
@@ -70,7 +71,6 @@ SUBJECTS = [
     {"name": "Web Technologies",      "code": "CT609"},
 ]
 
-DEMO_PASSWORD = "Campus@123"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -172,26 +172,29 @@ def seed_demo_student(college):
         # Find or link the student profile for this user
         sp = StudentProfile.query.filter_by(user_id=existing_email_user.id).first()
         if not sp:
-            # Find Anoop Singh by roll_no
-            sp = StudentProfile.query.filter_by(roll_no="2511217", branch=BRANCH).first()
-        if sp and sp.user_id != existing_email_user.id:
-            # The email user is different from roll_no user; use email user as demo
-            pass
+            sp = StudentProfile.query.filter_by(roll_no="CS2511213").first()
         if not sp:
             sp = StudentProfile(
                 id=uuid.uuid4(), user_id=existing_email_user.id, college_id=college.id,
-                full_name="Anoop Shukla", roll_no="2511217", branch=BRANCH,
-                semester=SEMESTER, batch_year=2026,
+                full_name="Anoop Shukla", roll_no="CS2511213", branch="Computer Science",
+                semester=SEMESTER, batch_year=2026, cgpa=7.92, attendance_pct=85.0
             )
             db.session.add(sp)
-        if not existing_email_user.phone:
-            existing_email_user.phone = "8738804344"
-        if not existing_email_user.password_hash:
-            existing_email_user.set_password(DEMO_PASSWORD)
+        else:
+            sp.user_id = existing_email_user.id
+            sp.branch = "Computer Science"
+            sp.semester = SEMESTER
+            if sp.cgpa is None:
+                sp.cgpa = 7.92
+            if sp.attendance_pct is None:
+                sp.attendance_pct = 85.0
+        existing_email_user.phone = "8738804344"
+        existing_email_user.set_password(DEMO_PASSWORD)
         existing_email_user.is_active = True
-        print(f"  [EXISTS] Email user {existing_email_user.email} — updated")
+        print(f"  [EXISTS] Email user {existing_email_user.email} — password set to {DEMO_PASSWORD}")
         db.session.flush()
         return existing_email_user, sp
+
     else:
         # Find Anoop Singh by roll_no and set his email
         sp = StudentProfile.query.filter_by(roll_no="2511217", branch=BRANCH).first()
@@ -199,8 +202,7 @@ def seed_demo_student(college):
             user = sp.user
             user.email = "anoopshukla0709@gmail.com"
             user.phone = "8738804344"
-            if not user.password_hash:
-                user.set_password(DEMO_PASSWORD)
+            user.set_password(DEMO_PASSWORD)
             user.is_active = True
             print(f"  [UPDATE] Student {sp.full_name} — email/phone/password set")
         else:
@@ -208,7 +210,7 @@ def seed_demo_student(college):
             sp = StudentProfile(
                 id=uuid.uuid4(), user_id=user.id, college_id=college.id,
                 full_name="Anoop Shukla", roll_no="2511217", branch=BRANCH,
-                semester=SEMESTER, batch_year=2026,
+                semester=SEMESTER, batch_year=2026, cgpa=7.92, attendance_pct=85.0
             )
             db.session.add(sp)
         db.session.flush()
@@ -232,19 +234,25 @@ def seed_cr_student(college, admin_user, prof_user):
                 user.email = "kajal.maurya.cr@iert.ac.in"
         if not user.phone:
             user.phone = "9900000002"
-        if not user.password_hash:
-            user.set_password(DEMO_PASSWORD)
+        user.set_password(DEMO_PASSWORD)
         user.is_active = True
         print(f"  [UPDATE] Student {sp.full_name} — CR credentials set")
     else:
         user = upsert_user(college.id, "kajal.maurya.cr@iert.ac.in", "9900000002", UserRole.STUDENT)
-        sp = StudentProfile(
-            id=uuid.uuid4(), user_id=user.id, college_id=college.id,
-            full_name="Kajal Maurya", roll_no="2511232", branch=BRANCH,
-            semester=SEMESTER, batch_year=2026,
-        )
-        db.session.add(sp)
+        sp = StudentProfile.query.filter_by(user_id=user.id).first()
+        if not sp:
+            sp = StudentProfile(
+                id=uuid.uuid4(), user_id=user.id, college_id=college.id,
+                full_name="Kajal Maurya", roll_no="2511232", branch=BRANCH,
+                semester=SEMESTER, batch_year=2026, cgpa=8.10, attendance_pct=91.0
+            )
+            db.session.add(sp)
+        else:
+            sp.cgpa = 8.10
+            sp.attendance_pct = 91.0
     db.session.flush()
+
+
 
     # Grant CR privilege
     priv = StudentPrivilege.query.filter_by(student_id=sp.id, delegated_role="CLASS_REPRESENTATIVE").first()
@@ -308,7 +316,7 @@ def fix_null_emails(college):
 # ─── Phase 6: Timetable Slots ─────────────────────────────────────────────────
 
 def seed_timetable(college, prof_user):
-    print(f"\n→ Seeding Timetable slots for {WEEKDAY_FULL}...")
+    print(f"\n→ Seeding Timetable slots for all days across {BRANCHES}...")
 
     slots_config = [
         {"subject_idx": 0, "time": "09:00-10:30", "room": CLASSROOMS[0]},
@@ -318,53 +326,53 @@ def seed_timetable(college, prof_user):
     ]
 
     created_slots = []
-    for cfg in slots_config:
-        subj = SUBJECTS[cfg["subject_idx"]]
-        classroom = cfg["room"]
-        existing = TimetableSlot.query.filter_by(
-            college_id=college.id,
-            branch=BRANCH,
-            semester=SEMESTER,
-            day_of_week=WEEKDAY_FULL,
-            time_slot=cfg["time"].replace("-", " - "),
-            course_code=subj["code"],
-        ).first()
+    for branch in BRANCHES:
+        for day in DAYS_OF_WEEK:
+            for cfg in slots_config:
+                subj = SUBJECTS[cfg["subject_idx"]]
+                classroom = cfg["room"]
+                existing = TimetableSlot.query.filter_by(
+                    college_id=college.id,
+                    branch=branch,
+                    semester=SEMESTER,
+                    day_of_week=day,
+                    time_slot=cfg["time"].replace("-", " - "),
+                    course_code=subj["code"],
+                ).first()
 
-        if not existing:
-            slot = TimetableSlot(
-                id=uuid.uuid4(),
-                college_id=college.id,
-                branch=BRANCH,
-                semester=SEMESTER,
-                role="student",
-                user_id=prof_user.id,
-                day_of_week=WEEKDAY_FULL,
-                time_slot=cfg["time"].replace("-", " - "),
-                course_name=subj["name"],
-                course_code=subj["code"],
-                room=classroom["room"],
-                professor_name="Dr. Ramesh Tiwari",
-                slot_type="lecture",
-                latitude=classroom["lat"],
-                longitude=classroom["lng"],
-                radius_meters=classroom["radius"],
-                is_deleted=False,
-            )
-            db.session.add(slot)
-            created_slots.append(slot)
-            print(f"  [CREATE] Slot: {subj['name']} | {WEEKDAY_FULL} {cfg['time']} | {classroom['room']}")
-        else:
-            # Ensure geofence coords are set
-            existing.latitude = classroom["lat"]
-            existing.longitude = classroom["lng"]
-            existing.radius_meters = classroom["radius"]
-            existing.user_id = prof_user.id
-            existing.professor_name = "Dr. Ramesh Tiwari"
-            existing.is_deleted = False
-            created_slots.append(existing)
-            print(f"  [EXISTS] Slot: {subj['name']} | {WEEKDAY_FULL} {cfg['time']}")
+                if not existing:
+                    slot = TimetableSlot(
+                        id=uuid.uuid4(),
+                        college_id=college.id,
+                        branch=branch,
+                        semester=SEMESTER,
+                        role="student",
+                        user_id=prof_user.id,
+                        day_of_week=day,
+                        time_slot=cfg["time"].replace("-", " - "),
+                        course_name=subj["name"],
+                        course_code=subj["code"],
+                        room=classroom["room"],
+                        professor_name="Dr. Ramesh Tiwari",
+                        slot_type="lecture",
+                        latitude=classroom["lat"],
+                        longitude=classroom["lng"],
+                        radius_meters=classroom["radius"],
+                        is_deleted=False,
+                    )
+                    db.session.add(slot)
+                    created_slots.append(slot)
+                else:
+                    existing.latitude = classroom["lat"]
+                    existing.longitude = classroom["lng"]
+                    existing.radius_meters = classroom["radius"]
+                    existing.user_id = prof_user.id
+                    existing.professor_name = "Dr. Ramesh Tiwari"
+                    existing.is_deleted = False
+                    created_slots.append(existing)
 
     db.session.flush()
+    print(f"  [SEEDED] Timetable slots for {len(BRANCHES)} branches × {len(DAYS_OF_WEEK)} days × {len(slots_config)} slots")
     return created_slots
 
 
@@ -372,29 +380,30 @@ def seed_timetable(college, prof_user):
 
 def seed_prof_class_assignments(prof_user):
     print("\n→ Seeding ProfessorClassAssignments...")
-    for subj in SUBJECTS[:4]:
-        existing = ProfessorClassAssignment.query.filter_by(
-            professor_user_id=prof_user.id,
-            course_code=subj["code"],
-            branch=BRANCH,
-            semester=SEMESTER,
-        ).first()
-        if not existing:
-            pca = ProfessorClassAssignment(
-                id=uuid.uuid4(),
+    for branch in BRANCHES:
+        for subj in SUBJECTS[:4]:
+            existing = ProfessorClassAssignment.query.filter_by(
                 professor_user_id=prof_user.id,
-                course_name=subj["name"],
                 course_code=subj["code"],
-                branch=BRANCH,
+                branch=branch,
                 semester=SEMESTER,
-                academic_year="2025-26",
-                is_active=True,
-            )
-            db.session.add(pca)
-            print(f"  [CREATE] ClassAssignment: {subj['name']} ({BRANCH} Sem{SEMESTER})")
-        else:
-            existing.is_active = True
-            print(f"  [EXISTS] ClassAssignment: {subj['name']}")
+            ).first()
+            if not existing:
+                pca = ProfessorClassAssignment(
+                    id=uuid.uuid4(),
+                    professor_user_id=prof_user.id,
+                    course_name=subj["name"],
+                    course_code=subj["code"],
+                    branch=branch,
+                    semester=SEMESTER,
+                    academic_year="2025-26",
+                    is_active=True,
+                )
+                db.session.add(pca)
+                print(f"  [CREATE] ClassAssignment: {subj['name']} ({branch} Sem{SEMESTER})")
+            else:
+                existing.is_active = True
+                print(f"  [EXISTS] ClassAssignment: {subj['name']} ({branch})")
     db.session.flush()
 
 
@@ -402,7 +411,11 @@ def seed_prof_class_assignments(prof_user):
 
 def seed_attendance(college):
     print("\n→ Seeding Attendance records...")
-    students = StudentProfile.query.filter_by(college_id=college.id, branch=BRANCH, semester=SEMESTER).all()
+    students = StudentProfile.query.filter(
+        StudentProfile.college_id == college.id,
+        StudentProfile.branch.in_(BRANCHES),
+        StudentProfile.semester == SEMESTER
+    ).all()
 
     ATTENDANCE_DATA = {
         "CT601": (28, 32),   # 87.5% — SAFE
@@ -434,14 +447,18 @@ def seed_attendance(college):
                 existing.attended_classes = attended
                 existing.total_classes = total
     db.session.flush()
-    print(f"  [SEEDED] Attendance for {len(students)} CT Sem{SEMESTER} students × {len(ATTENDANCE_DATA)} subjects")
+    print(f"  [SEEDED] Attendance for {len(students)} students × {len(ATTENDANCE_DATA)} subjects")
 
 
 # ─── Phase 9: Grades ──────────────────────────────────────────────────────────
 
 def seed_grades(college):
     print("\n→ Seeding Grades...")
-    students = StudentProfile.query.filter_by(college_id=college.id, branch=BRANCH, semester=SEMESTER).all()
+    students = StudentProfile.query.filter(
+        StudentProfile.college_id == college.id,
+        StudentProfile.branch.in_(BRANCHES),
+        StudentProfile.semester == SEMESTER
+    ).all()
 
     GRADE_DATA = [
         ("CT601", "Operating Systems",    35, 28, 9, "A+"),
@@ -502,27 +519,28 @@ def seed_assignments(college, prof_user):
         },
     ]
 
-    for data in assignments_data:
-        existing = Assignment.query.filter_by(
-            college_id=college.id, title=data["title"], branch=BRANCH
-        ).first()
-        if not existing:
-            a = Assignment(
-                id=uuid.uuid4(),
-                college_id=college.id,
-                title=data["title"],
-                subject=data["subject"],
-                branch=BRANCH,
-                semester=SEMESTER,
-                due_date=data["due"],
-                points=data["points"],
-                description=data["desc"],
-                professor_id=prof_user.id,
-            )
-            db.session.add(a)
-            print(f"  [CREATE] Assignment: {data['title']}")
-        else:
-            print(f"  [EXISTS] Assignment: {data['title']}")
+    for branch in BRANCHES:
+        for data in assignments_data:
+            existing = Assignment.query.filter_by(
+                college_id=college.id, title=data["title"], branch=branch
+            ).first()
+            if not existing:
+                a = Assignment(
+                    id=uuid.uuid4(),
+                    college_id=college.id,
+                    title=data["title"],
+                    subject=data["subject"],
+                    branch=branch,
+                    semester=SEMESTER,
+                    due_date=data["due"],
+                    points=data["points"],
+                    description=data["desc"],
+                    professor_id=prof_user.id,
+                )
+                db.session.add(a)
+                print(f"  [CREATE] Assignment: {data['title']} ({branch})")
+            else:
+                print(f"  [EXISTS] Assignment: {data['title']} ({branch})")
     db.session.flush()
 
 
@@ -809,8 +827,8 @@ def main():
             print(f"  PROFESSOR: prof.ramesh.tiwari@iert.ac.in / {DEMO_PASSWORD}")
             print(f"  TPO      : tpo.priya.mehta@iert.ac.in / {DEMO_PASSWORD}")
             print(f"  ADMIN    : anoopbuilds@gmail.com (existing password)")
-            print(f"\n  Timetable seeded for: {WEEKDAY_FULL}")
-            print(f"  Branch: {BRANCH}, Semester: {SEMESTER}")
+            print(f"\n  Timetable seeded for: {', '.join(DAYS_OF_WEEK)}")
+            print(f"  Branches: {', '.join(BRANCHES)}, Semester: {SEMESTER}")
             print(f"  Timetable slots: {len(slots)}")
             print(f"  Subjects: {', '.join(s['code'] for s in SUBJECTS[:4])}")
 
