@@ -31,23 +31,39 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 0.  Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Capacitor } from '@capacitor/core';
 import { storage } from './storage';
 
-const isNative = typeof window !== 'undefined' && (Capacitor.isNativePlatform() || window.location.protocol === 'capacitor:');
-const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
-const isDevBrowser = typeof window !== 'undefined' && !isNative && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+export function getApiBaseUrl() {
 
-let apiURL = '';
-if (isNative || (!isDevBrowser && !isVercel)) {
-  apiURL = 'https://projectcampusconnect.onrender.com';
-} else {
-  apiURL = '';
+  if (typeof window === 'undefined') return 'https://projectcampusconnect.onrender.com';
+
+  if (import.meta.env?.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+  }
+
+  const isNative = Boolean(
+    Capacitor.isNativePlatform() ||
+    Capacitor.getPlatform() === 'android' ||
+    Capacitor.getPlatform() === 'ios' ||
+    window.location.protocol === 'capacitor:' ||
+    window.location.protocol === 'ionic:' ||
+    window.location.protocol === 'file:' ||
+    (typeof window.Capacitor !== 'undefined' && window.location.hostname === 'localhost')
+  );
+
+  const isVercel = window.location.hostname.includes('vercel.app');
+  const isDevBrowser = !isNative && !isVercel && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  if (isNative || (!isDevBrowser && !isVercel)) {
+    return 'https://projectcampusconnect.onrender.com';
+  }
+  return '';
 }
-const BASE = apiURL ? `${apiURL}/api/v1` : '/api/v1';
+
+export const API_URL = getApiBaseUrl();
+export const BASE = API_URL ? `${API_URL}/api/v1` : '/api/v1';
+
 
 /** localStorage keys (must stay in sync with AuthContext) */
 const KEYS = {
@@ -501,7 +517,11 @@ export const placementApi = {
   /** PL16 — delete a notice (tpo / admin) */
   deleteNotice: (noticeId) => apiDelete(`/placement/notices/${noticeId}`),
 
+  /** Student: report a drive or offer */
+  submitReport: (payload) => apiPost('/placement/reports', payload),
+
   /** Companies list */
+
   listCompanies: () => apiGet('/placement/companies'),
 
   /** Create company */
@@ -752,7 +772,9 @@ export const professorsApi = {
   getMyClasses: () => apiGet('/professors/me/classes'),
   list: (params) => apiGet('/professors', params),
   getById: (profId) => apiGet(`/professors/${profId}`),
+  requestAdminDetailAccess: (payload) => apiPost('/professors/me/admin-detail-request', payload),
 };
+
 
 // ── 4k. Notifications ─────────────────────────────────────────────────────────
 export const notificationsApi = {

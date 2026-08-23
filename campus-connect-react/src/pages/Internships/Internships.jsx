@@ -97,30 +97,24 @@ export default function Internships() {
     if (!reportReason.trim()) { showToast('Please select a reason.', 'error'); return; }
     setSubmittingReport(true);
     try {
-      const res = await fetch('/api/v1/placement/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          target_type: 'drive',
-          target_id: reportTarget.id,
-          reason: `Reason: ${reportReason}. Details: ${reportDetails}`
-        })
+      const res = await placementApi.submitReport({
+        target_type: 'drive',
+        target_id: reportTarget.id,
+        reason: `Reason: ${reportReason}. Details: ${reportDetails}`
       });
-      if (res.ok) {
+      if (res && !res.error) {
         showToast('Issue reported to placement cell.', 'success');
         setShowReportModal(false);
         setReportDetails('');
       } else {
-        showToast('Failed to submit report.', 'error');
+        showToast(res?.error || 'Failed to submit report.', 'error');
       }
-    } catch (e) {
+    } catch {
       showToast('Network error submitting report.', 'error');
     }
     setSubmittingReport(false);
   }
+
 
   const filteredDrives = useMemo(() => {
     const q = search.toLowerCase();

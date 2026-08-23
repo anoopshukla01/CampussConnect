@@ -15,27 +15,10 @@ import {
   User, BookOpen, Home, ArrowLeft, AlertTriangle,
   Lock, Clock, Unlock
 } from 'lucide-react';
-import { studentsApi } from '@/services/api';
+import { studentsApi, professorsApi } from '@/services/api';
 import { useToast } from '../../../context/ToastContext';
 import '@admin/admin.shared.css';
 import './StudentDetail.css';
-
-let API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-if (API_BASE.includes('campusconnect-backend.onrender.com') || import.meta.env.PROD) API_BASE = '';
-if (!API_BASE) API_BASE = '/api/v1';
-
-async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem('access_token');
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  return res;
-}
 
 export default function ProfStudentDetail() {
   const { courseCode, sid } = useParams();
@@ -60,16 +43,12 @@ export default function ProfStudentDetail() {
   const handleRequestAccess = async () => {
     setRequesting(true);
     try {
-      const res = await apiFetch('/professors/me/admin-detail-request', {
-        method: 'POST',
-        body: JSON.stringify({ student_id: sid, reason: 'Academic/welfare follow-up' }),
-      });
-      const body = await res.json();
-      if (res.ok) {
+      const res = await professorsApi.requestAdminDetailAccess({ student_id: sid, reason: 'Academic/welfare follow-up' });
+      if (res && !res.error) {
         showToast('Access request submitted. You will be notified on approval.', 'success', 3000);
         fetchDetail(); // re-fetch to pick up any updated admin_access_granted flag
       } else {
-        showToast(body.error || 'Request failed', 'error', 2500);
+        showToast(res?.error || 'Request failed', 'error', 2500);
       }
     } catch {
       showToast('Network error — try again', 'error', 2000);
@@ -77,6 +56,7 @@ export default function ProfStudentDetail() {
       setRequesting(false);
     }
   };
+
 
   if (loading) return <div className="sd-spinner" aria-label="Loading student profile" />;
   if (error) return (

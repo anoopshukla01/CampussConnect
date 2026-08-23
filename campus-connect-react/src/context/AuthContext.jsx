@@ -17,7 +17,8 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { USERS } from '../data/users';
 import { storage } from '../services/storage';
-import { studentsApi, professorsApi, authApi } from '../services/api';
+import { studentsApi, professorsApi, authApi, BASE } from '../services/api';
+
 
 const AuthContext = createContext(null);
 
@@ -274,11 +275,12 @@ export function AuthProvider({ children }) {
           const refreshToken = await storage.get(KEYS.REFRESH);
           if (refreshToken) {
             try {
-              const res = await fetch('/api/v1/auth/token/refresh', {
+              const res = await fetch(`${BASE}/auth/token/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ refresh_token: refreshToken }),
               });
+
               if (res.ok) {
                 const data = await res.json();
                 await storage.set(KEYS.ACCESS,  data.access_token);
@@ -361,7 +363,7 @@ export function AuthProvider({ children }) {
       : { roll_no: idStr,  password: password.trim() };
 
     try {
-      const res  = await fetch('/api/v1/auth/login', {
+      const res  = await fetch(`${BASE}/auth/login`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
@@ -376,10 +378,16 @@ export function AuthProvider({ children }) {
         await persistSession(userObj, data.access_token, data.refresh_token);
         setUser(userObj);
         setConsentRequired(Boolean(data.consent_required));
-        return { success: true, user: userObj, consentRequired: Boolean(data.consent_required) };
+        return {
+          success: true,
+          user: userObj,
+          consentRequired: Boolean(data.consent_required),
+          mustChangePassword: Boolean(data.must_change_password || data.mustChangePassword)
+        };
       }
 
       return { success: false, error: data.error ?? data.message ?? 'Invalid credentials.' };
+
 
     } catch {
       if (import.meta.env.DEV) {
@@ -465,7 +473,7 @@ export function AuthProvider({ children }) {
     try {
       const token = await storage.get(KEYS.ACCESS);
       if (token && token !== 'mock-token') {
-        await fetch('/api/v1/auth/logout', {
+        await fetch(`${BASE}/auth/logout`, {
           method:  'POST',
           headers: {
             'Content-Type':  'application/json',
@@ -474,6 +482,7 @@ export function AuthProvider({ children }) {
           body: JSON.stringify({}),
         });
       }
+
     } catch { /* ignore network errors on logout */ }
 
     await clearSession();

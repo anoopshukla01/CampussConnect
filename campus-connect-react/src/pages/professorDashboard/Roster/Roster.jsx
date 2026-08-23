@@ -4,29 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { useApiData } from '../../../hooks/useApiData';
+import { professorsApi } from '../../../services/api';
 import DelegationManagerModal from '../../../components/Delegation/DelegationManagerModal';
 import './Roster.css';
 
-let API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-if (API_BASE.includes('campusconnect-backend.onrender.com') || import.meta.env.PROD) {
-  API_BASE = '';
-}
-if (!API_BASE) {
-  API_BASE = '/api/v1';
-}
-
-async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem('access_token');
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  return res;
-}
 
 export default function Roster() {
   const { user } = useAuth();
@@ -74,16 +55,12 @@ export default function Roster() {
   const handleRequestAccess = useCallback(async (studentId, studentName) => {
     setRequestingFor(studentId);
     try {
-      const res = await apiFetch('/professors/me/admin-detail-request', {
-        method: 'POST',
-        body: JSON.stringify({ student_id: studentId, reason: 'Academic/welfare follow-up' }),
-      });
-      const body = await res.json();
-      if (res.ok) {
+      const res = await professorsApi.requestAdminDetailAccess({ student_id: studentId, reason: 'Academic/welfare follow-up' });
+      if (res && !res.error) {
         showToast(`Access request submitted for ${studentName}`, 'success', 2500);
         refetchRequests();
       } else {
-        showToast(body.error || 'Request failed', 'error', 2500);
+        showToast(res?.error || 'Request failed', 'error', 2500);
       }
     } catch {
       showToast('Network error — try again', 'error', 2000);
@@ -91,6 +68,7 @@ export default function Roster() {
       setRequestingFor(null);
     }
   }, [showToast, refetchRequests]);
+
 
   const toggleSort = (col) => {
     if (sortBy === col) {
