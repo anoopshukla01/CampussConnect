@@ -25,7 +25,9 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=True) # NULL for OTP-only registration phase
     role = db.Column(db.Enum(UserRole), nullable=False)
     is_active = db.Column(db.Boolean, default=False)
+    must_change_password = db.Column(db.Boolean, default=True, nullable=False)
     is_deleted = db.Column(db.Boolean, default=False)
+
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
     suspended_features = db.Column(db.JSON, nullable=True, default=list)

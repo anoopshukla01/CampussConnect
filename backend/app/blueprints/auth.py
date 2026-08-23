@@ -407,6 +407,8 @@ def register_student():
                 profile.college_id = college.id
 
         user.set_password(data["password"])
+        user.must_change_password = False
+
 
         now = datetime.now(timezone.utc)
         profile.dpdp_consent_given = data["dpdp_consent"]
@@ -631,7 +633,10 @@ def login():
             "college_name": user.college.name if user.college else "Campus Connect University",
             "college_code": user.college.code if user.college else "CCU",
             "consent_required": consent_needed,
+            "must_change_password": getattr(user, "must_change_password", False),
+            "mustChangePassword": getattr(user, "must_change_password", False),
         }
+
 
         try:
             if user.role.value == "student":
@@ -789,7 +794,9 @@ def password_change():
 
     try:
         user.set_password(data["new_password"])
+        user.must_change_password = False
         # Revoke all refresh tokens for this user
+
         db.session.query(RefreshToken).filter_by(
             user_id=user.id, is_revoked=False
         ).update({"is_revoked": True})

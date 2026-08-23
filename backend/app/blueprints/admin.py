@@ -834,28 +834,42 @@ def get_profile_analytics():
 @require_roles("admin")
 def import_students_csv():
     """
-    Bulk import student records (via CSV file upload or JSON payload).
-    Pre-creates stub User & StudentProfile records allowing students to claim them via Roll Number + OTP.
+    Bulk import student records via CSV file upload or JSON payload.
+    Automatically parses, validates, normalizes, and generates institutional email
+    addresses, contact numbers, and default initial passwords (Campus@<RollNo>)
+    so every imported student can immediately log into the platform.
     """
-    import csv, io
+    import csv, io, re
 
     students_data = []
+
+    def _clean_header(key):
+        return re.sub(r'[^a-zA-Z0-9]', '', str(key or '')).lower()
+
+    def _get_val(row_dict, *candidate_keys, default=None):
+        for c in candidate_keys:
+            cleaned_c = _clean_header(c)
+            for k, v in row_dict.items():
+                if _clean_header(k) == cleaned_c and v is not None and str(v).strip():
+                    return str(v).strip()
+        return default
 
     # 1. Check file upload
     if "file" in request.files:
         file = request.files["file"]
-        stream = io.StringIO(file.stream.read().decode("utf8"), newline=None)
-        reader = csv.DictReader(stream)
-        for row in reader:
-            students_data.append({
-                "roll_no":    row.get("roll_no")    or row.get("Roll No"),
-                "full_name":  row.get("full_name")  or row.get("Name"),
-                "email":      row.get("email")      or row.get("Email")      or None,
-                "branch":     row.get("branch")     or row.get("Branch")     or "Computer Science",
-                "batch_year": int(row.get("batch_year") or row.get("Batch")    or 2026),
-                "semester":   int(row.get("semester")   or row.get("Semester") or 6),
-                "cgpa":       float(row.get("cgpa")     or row.get("CGPA")     or 8.0),
-            })
+        if not file.filename:
+            return error_response("No file selected for upload.", 400)
+        try:
+            content = file.stream.read().decode("utf-8-sig", errors="replace")
+            stream = io.StringIO(content, newline=None)
+            reader = csv.DictReader(stream)
+            for row in reader:
+                if not any(row.values()):
+                    continue
+                students_data.append(row)
+        except Exception as exc:
+            return error_response(f"Failed to parse CSV file: {str(exc)}", 400)
+
     # 2. Check JSON payload
     elif request.is_json:
         json_body = request.get_json(force=True) or {}
@@ -864,61 +878,198 @@ def import_students_csv():
     if not students_data:
         return error_response("No student records provided. Upload a valid CSV file or JSON body.", 400)
 
-    imported_count = 0
-    skipped_count = 0
     cid = g.current_user.college_id
+    college = g.current_user.college
+    college_domain = f"{college.code.lower()}.ac.in" if (college and college.code) else "campusconnect.edu"
+
+    # Preload existing emails and phones for fast uniqueness check
+    existing_user_emails = set(
+        u.email.lower() for u in User.query.filter_by(college_id=cid).all() if u.email
+    )
+    existing_user_phones = set(
+        u.phone for u in User.query.filter_by(college_id=cid).all() if u.phone
+    )
+
+    inserted_count = 0
+    updated_count = 0
+    row_errors = []
+
+    def _slugify(text):
+        if not text:
+            return "student"
+        s = re.sub(r'[^a-zA-Z0-9]', '.', text.strip().lower())
+        return re.sub(r'\.+', '.', s).strip('.')
+
+    for idx, raw_row in enumerate(students_data, start=1):
+        try:
+            # Flexible field extraction
+            raw_roll = _get_val(raw_row, "roll_no", "rollno", "roll_number", "roll", "roll no", "student_id")
+            if not raw_roll:
+                row_errors.append({"row": idx, "error": "Missing roll number", "data": raw_row})
+                continue
+
+            roll_no = raw_roll.strip().upper()
+            full_name = _get_val(raw_row, "full_name", "fullname", "name", "student_name", "student name") or f"Student {roll_no}"
+            branch = _get_val(raw_row, "branch", "department", "dept", "stream") or "Computer Science"
+            
+            raw_batch = _get_val(raw_row, "batch_year", "batch", "year", "graduating_year") or "2026"
+            try:
+                batch_year = int(re.sub(r'\D', '', raw_batch)) if re.sub(r'\D', '', raw_batch) else 2026
+            except Exception:
+                batch_year = 2026
+
+            raw_sem = _get_val(raw_row, "semester", "sem") or "6"
+            try:
+                semester = int(re.sub(r'\D', '', raw_sem)) if re.sub(r'\D', '', raw_sem) else 6
+            except Exception:
+                semester = 6
+
+            raw_cgpa = _get_val(raw_row, "cgpa", "gpa", "score") or "7.50"
+            try:
+                cgpa = float(re.findall(r'\d+\.?\d*', raw_cgpa)[0]) if re.findall(r'\d+\.?\d*', raw_cgpa) else 7.50
+            except Exception:
+                cgpa = 7.50
+
+            raw_email = _get_val(raw_row, "email", "mail", "student_email", "email_id")
+            raw_phone = _get_val(raw_row, "phone", "mobile", "contact", "phone_number", "contact_number")
+            raw_password = _get_val(raw_row, "initial_password", "password", "default_password")
+
+            # Email generation & normalization
+            if raw_email and "@" in raw_email:
+                email = raw_email.strip().lower()
+            else:
+                name_slug = _slugify(full_name)
+                email = f"{name_slug}.{roll_no.lower()}@{college_domain}"
+                if email in existing_user_emails:
+                    email = f"{roll_no.lower()}@{college_domain}"
+                counter = 1
+                base_email = email
+                while email in existing_user_emails:
+                    email = f"{base_email.split('@')[0]}.{counter}@{college_domain}"
+                    counter += 1
+
+            # Phone generation & normalization
+            if raw_phone and len(re.sub(r'\D', '', raw_phone)) >= 10:
+                phone = re.sub(r'\D', '', raw_phone)[-10:]
+            else:
+                phone = f"900000{str(abs(hash(roll_no)) % 10000).zfill(4)}"
+                counter = 1
+                base_phone = phone
+                while phone in existing_user_phones:
+                    phone = f"90000{str((abs(hash(roll_no)) + counter) % 100000).zfill(5)}"
+                    counter += 1
+
+            default_initial_password = raw_password or f"Campus@{roll_no}"
+
+            # Check if student already exists in this college by roll number
+            existing_profile = db.session.query(StudentProfile).filter_by(
+                roll_no=roll_no, college_id=cid, is_deleted=False
+            ).first()
+
+            if existing_profile:
+                # Update existing student records gracefully
+                existing_profile.full_name = full_name
+                existing_profile.branch = branch
+                existing_profile.batch_year = batch_year
+                existing_profile.semester = semester
+                existing_profile.cgpa = cgpa
+
+                user = existing_profile.user
+                if not user:
+                    user = User(
+                        college_id=cid,
+                        email=email,
+                        phone=phone,
+                        role=UserRole.STUDENT,
+                        is_active=True,
+                        must_change_password=True,
+                    )
+                    user.set_password(default_initial_password)
+                    db.session.add(user)
+                    db.session.flush()
+                    existing_profile.user_id = user.id
+                else:
+                    if not user.email:
+                        user.email = email
+                    if not user.phone:
+                        user.phone = phone
+                    if not user.password_hash:
+                        user.set_password(default_initial_password)
+                        user.must_change_password = True
+                    user.is_active = True
+
+                existing_user_emails.add(user.email.lower() if user.email else "")
+                existing_user_phones.add(user.phone if user.phone else "")
+                updated_count += 1
+
+            else:
+                # Create brand new student user & profile
+                user = User(
+                    college_id=cid,
+                    email=email,
+                    phone=phone,
+                    role=UserRole.STUDENT,
+                    is_active=True,
+                    must_change_password=True,
+                )
+                user.set_password(default_initial_password)
+                db.session.add(user)
+                db.session.flush()
+
+                profile = StudentProfile(
+                    college_id=cid,
+                    user_id=user.id,
+                    roll_no=roll_no,
+                    full_name=full_name,
+                    branch=branch,
+                    batch_year=batch_year,
+                    semester=semester,
+                    cgpa=cgpa,
+                    profile_complete=False,
+                )
+                db.session.add(profile)
+
+                existing_user_emails.add(email.lower())
+                existing_user_phones.add(phone)
+                inserted_count += 1
+
+        except Exception as row_exc:
+            row_errors.append({
+                "row": idx,
+                "roll_no": raw_row.get("roll_no") or raw_row.get("Roll No") or f"Row {idx}",
+                "error": str(row_exc)
+            })
 
     try:
-        for item in students_data:
-            roll_no = item.get("roll_no")
-            if not roll_no:
-                continue
-
-            existing = db.session.query(StudentProfile).filter_by(roll_no=roll_no, college_id=cid, is_deleted=False).first()
-            if existing:
-                skipped_count += 1
-                continue
-
-            email = (item.get("email") or "").strip().lower() or None
-
-            # If an email is provided, skip this row if that email already belongs to
-            # another user in this college (avoids unique-constraint crash).
-            if email:
-                email_clash = db.session.query(User).filter_by(college_id=cid, email=email).first()
-                if email_clash:
-                    skipped_count += 1
-                    continue
-
-            # Create inactive stub User & StudentProfile
-            user = User(college_id=cid, role=UserRole.STUDENT, is_active=False, email=email)
-            db.session.add(user)
-            db.session.flush()
-
-            profile = StudentProfile(
-                college_id=cid,
-                user_id=user.id,
-                roll_no=roll_no.upper(),
-                full_name=item.get("full_name") or f"Student {roll_no}",
-                branch=item.get("branch") or "Computer Science",
-                batch_year=int(item.get("batch_year") or 2026),
-                semester=int(item.get("semester") or 6),
-                cgpa=float(item.get("cgpa") or 7.5),
-                profile_complete=False
-            )
-            db.session.add(profile)
-            imported_count += 1
-
         db.session.commit()
-    except Exception as exc:
+    except Exception as commit_exc:
         db.session.rollback()
-        return internal_error_response(exc, "import_students_csv")
+        return internal_error_response(commit_exc, "import_students_csv")
 
-    audit_action("admin.students.bulk_imported", detail={"imported": imported_count, "skipped": skipped_count})
+    audit_action(
+        "admin.students.bulk_imported",
+        detail={
+            "total": len(students_data),
+            "inserted": inserted_count,
+            "updated": updated_count,
+            "failed": len(row_errors),
+        }
+    )
+
+    msg = f"Successfully processed {len(students_data)} student records ({inserted_count} inserted, {updated_count} updated, {len(row_errors)} failed)."
     return jsonify({
-        "message": f"Successfully imported {imported_count} student records.",
-        "imported_count": imported_count,
-        "skipped_count": skipped_count
+        "message": msg,
+        "summary": {
+            "total": len(students_data),
+            "inserted": inserted_count,
+            "updated": updated_count,
+            "failed": len(row_errors),
+        },
+        "errors": row_errors,
+        "imported_count": inserted_count,
+        "skipped_count": len(row_errors),
     }), 201
+
 
 
 

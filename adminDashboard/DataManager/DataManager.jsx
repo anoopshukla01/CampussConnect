@@ -55,12 +55,25 @@ export default function DataManager() {
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
-    showToast('Importing student CSV roster…', 'info', 2500);
-    const res = await adminApi.bulkImportStudents(formData);
-    if (res?.error) { showToast(res.error, 'error', 3500); return; }
-    showToast(res?.message || 'CSV imported successfully!', 'success', 3500);
-    fetchAllData();
+    showToast('Importing and validating student roster…', 'info', 2500);
+    try {
+      const res = await adminApi.bulkImportStudents(formData);
+      if (res?.error) {
+        showToast(res.error, 'error', 4000);
+        return;
+      }
+      const summaryMsg = res?.message || (res?.summary 
+        ? `Processed ${res.summary.total} records (${res.summary.inserted} added, ${res.summary.updated} updated)`
+        : 'Student roster imported successfully!');
+      showToast(summaryMsg, 'success', 4500);
+      fetchAllData();
+    } catch (err) {
+      showToast(err.message || 'Failed to process student CSV.', 'error', 4000);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   }
+
 
   const filteredStudents = (students || []).filter(s =>
     s && (!search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.roll_no?.toLowerCase().includes(search.toLowerCase()) || s.branch?.toLowerCase().includes(search.toLowerCase()))
