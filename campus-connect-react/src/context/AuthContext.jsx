@@ -17,7 +17,8 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { USERS } from '../data/users';
 import { storage } from '../services/storage';
-import { studentsApi, professorsApi, authApi, BASE } from '../services/api';
+import { studentsApi, professorsApi, authApi, BASE, getApiBase } from '../services/api';
+
 
 
 const AuthContext = createContext(null);
@@ -275,11 +276,12 @@ export function AuthProvider({ children }) {
           const refreshToken = await storage.get(KEYS.REFRESH);
           if (refreshToken) {
             try {
-              const res = await fetch(`${BASE}/auth/token/refresh`, {
+              const res = await fetch(`${getApiBase()}/auth/token/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ refresh_token: refreshToken }),
               });
+
 
               if (res.ok) {
                 const data = await res.json();
@@ -363,12 +365,13 @@ export function AuthProvider({ children }) {
       : { roll_no: idStr,  password: password.trim() };
 
     try {
-      const res  = await fetch(`${BASE}/auth/login`, {
+      const res  = await fetch(`${getApiBase()}/auth/login`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
       });
       const data = await res.json();
+
 
       if (res.ok) {
         // ✅ Role resolved from backend JWT claim — never from client input
@@ -473,7 +476,7 @@ export function AuthProvider({ children }) {
     try {
       const token = await storage.get(KEYS.ACCESS);
       if (token && token !== 'mock-token') {
-        await fetch(`${BASE}/auth/logout`, {
+        await fetch(`${getApiBase()}/auth/logout`, {
           method:  'POST',
           headers: {
             'Content-Type':  'application/json',
@@ -482,6 +485,7 @@ export function AuthProvider({ children }) {
           body: JSON.stringify({}),
         });
       }
+
 
     } catch { /* ignore network errors on logout */ }
 

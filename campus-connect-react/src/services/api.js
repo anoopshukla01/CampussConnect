@@ -35,34 +35,45 @@ import { Capacitor } from '@capacitor/core';
 import { storage } from './storage';
 
 export function getApiBaseUrl() {
-
   if (typeof window === 'undefined') return 'https://projectcampusconnect.onrender.com';
 
   if (import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
   }
 
-  const isNative = Boolean(
+  // 1. Vercel deployment: relative URL uses vercel.json rewrites
+  if (window.location.hostname.includes('vercel.app')) {
+    return '';
+  }
+
+  // 2. Local desktop Vite development server (only when developing on Mac/PC in standard browser)
+  const isCapacitor = Boolean(
+    window.Capacitor ||
     Capacitor.isNativePlatform() ||
     Capacitor.getPlatform() === 'android' ||
     Capacitor.getPlatform() === 'ios' ||
     window.location.protocol === 'capacitor:' ||
     window.location.protocol === 'ionic:' ||
     window.location.protocol === 'file:' ||
-    (typeof window.Capacitor !== 'undefined' && window.location.hostname === 'localhost')
+    /Android|iPhone|iPad|iPod|Capacitor/i.test(navigator.userAgent || '')
   );
 
-  const isVercel = window.location.hostname.includes('vercel.app');
-  const isDevBrowser = !isNative && !isVercel && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  if (isNative || (!isDevBrowser && !isVercel)) {
-    return 'https://projectcampusconnect.onrender.com';
+  if (import.meta.env.DEV && !isCapacitor && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return '';
   }
-  return '';
+
+  // 3. For Android APK, iOS native app, Capacitor WebView, and standalone mobile builds:
+  return 'https://projectcampusconnect.onrender.com';
 }
 
-export const API_URL = getApiBaseUrl();
-export const BASE = API_URL ? `${API_URL}/api/v1` : '/api/v1';
+export function getApiBase() {
+  const url = getApiBaseUrl();
+  return url ? `${url}/api/v1` : '/api/v1';
+}
+
+export const API_URL = 'https://projectcampusconnect.onrender.com';
+export const BASE = getApiBase();
+
 
 
 /** localStorage keys (must stay in sync with AuthContext) */
@@ -121,7 +132,10 @@ let _refreshPromise = null;
  * @param {boolean} _isRetry  – internal flag; prevents refresh loops
  */
 async function _request(path, opts = {}, _isRetry = false) {
-  const url = BASE + path;
+  const base = getApiBase();
+  const url = (path.startsWith('http://') || path.startsWith('https://'))
+    ? path
+    : `${base}${path.startsWith('/') ? path : '/' + path}`;
   const token = await getAccessToken();
 
   const headers = {
@@ -192,11 +206,12 @@ async function _silentRefresh() {
 
   _refreshPromise = (async () => {
     try {
-      const res = await fetch(`${BASE}/auth/token/refresh`, {
+      const res = await fetch(`${getApiBase()}/auth/token/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: rt }),
       });
+
 
       if (!res.ok) return false;
 
@@ -298,11 +313,12 @@ export const authApi = {
 
   /** A7 — silent refresh (called internally; exposed for manual use) */
   refresh: (refreshToken) =>
-    fetch(`${BASE}/auth/token/refresh`, {
+    fetch(`${getApiBase()}/auth/token/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
     }).then((r) => r.json()),
+
 
   /** A8 — logout (revokes refresh token server-side) */
   logout: () => apiPost('/auth/logout', {}),

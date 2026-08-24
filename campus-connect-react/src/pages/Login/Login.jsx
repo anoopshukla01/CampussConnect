@@ -8,9 +8,9 @@ import { auth } from '../../config/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import { BASE } from '../../services/api';
+import { BASE, getApiBase } from '../../services/api';
 import './Login.css';
+
 
 
 const EyeOpen = () => (
@@ -238,7 +238,7 @@ export default function Login() {
     if (!signupDpdp) { setSignupError('DPDP Act consent is required to create an account.'); return; }
     setSignupError(''); setLoading(true);
     try {
-      const res = await fetch(`${BASE}/auth/register/student`, {
+      const res = await fetch(`${getApiBase()}/auth/register/student`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           otp_verified_token: signupOtpToken,
@@ -247,6 +247,7 @@ export default function Login() {
           dpdp_consent: signupDpdp,
         }),
       });
+
 
       const data = await res.json();
       setLoading(false);
@@ -360,7 +361,7 @@ export default function Login() {
     if (!claimDpdp) { setClaimStepError('DPDP Act consent is mandatory.'); return; }
     setClaimStepError(''); setLoading(true);
     try {
-      const res = await fetch(`${BASE}/auth/register/student`, {
+      const res = await fetch(`${getApiBase()}/auth/register/student`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp_verified_token: otpToken, college_code: claimCollegeCode.trim().toUpperCase(), roll_no: claimRollNo.trim(), password: claimPassword, dpdp_consent: claimDpdp }),
       });
@@ -383,11 +384,12 @@ export default function Login() {
     if (!invitePassword || invitePassword.length < 8) { showToast('Password must be at least 8 characters.', 'error', 3000); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/auth/invite/accept`, {
+      const res = await fetch(`${getApiBase()}/auth/invite/accept`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: inviteToken.trim(), password: invitePassword, full_name: inviteFullName.trim() || undefined }),
       });
       const data = await res.json();
+
 
       setLoading(false);
       if (res.ok) { showToast('Account created! Please sign in.', 'success', 3500); setMode('login'); }
