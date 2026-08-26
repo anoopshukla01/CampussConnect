@@ -267,7 +267,16 @@ class ProductionConfig(BaseConfig):
         cls.LOCAL_DEV_EMAIL_REDIRECT = ""
 
         origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
-        for fallback in ["http://localhost", "https://localhost", "capacitor://localhost"]:
+        for fallback in [
+            "http://localhost",
+            "https://localhost",
+            "capacitor://localhost",
+            "https://campussconnect.me",
+            "https://www.campussconnect.me",
+            "https://api.campussconnect.me",
+            "http://campussconnect.me",
+            "http://www.campussconnect.me",
+        ]:
             if fallback not in origins:
                 origins.append(fallback)
         cls.CORS_ORIGINS = origins
