@@ -2462,6 +2462,16 @@ def create_professor_assignment():
         .first()
     )
     if not prof_user:
+        # Fallback: support passing ProfessorProfile.id as professor_user_id
+        prof_profile = (
+            db.session.query(ProfessorProfile)
+            .filter_by(id=prof_user_id, college_id=cid, is_deleted=False)
+            .first()
+        )
+        if prof_profile and prof_profile.user and prof_profile.user.college_id == cid and not prof_profile.user.is_deleted:
+            prof_user = prof_profile.user
+
+    if not prof_user:
         return error_response("Professor not found in this college.", 404)
 
     # ── Branch must be active in this college ─────────────────────────────────
@@ -2470,6 +2480,20 @@ def create_professor_assignment():
         .filter_by(college_id=cid, code=branch_code, is_active=True)
         .first()
     )
+    if not branch:
+        # Fallback: check case-insensitive or by branch name
+        branch = (
+            db.session.query(Branch)
+            .filter(
+                Branch.college_id == cid,
+                Branch.is_active == True,
+                db.or_(
+                    db.func.lower(Branch.code) == branch_code.lower(),
+                    db.func.lower(Branch.name) == branch_code.lower(),
+                ),
+            )
+            .first()
+        )
     if not branch:
         return error_response(
             f"Branch '{branch_code}' not found or not active in this college.", 400

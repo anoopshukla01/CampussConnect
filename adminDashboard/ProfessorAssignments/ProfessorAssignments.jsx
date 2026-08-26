@@ -59,7 +59,7 @@ export default function ProfessorAssignments() {
   function handleOpenCreate() {
     setEditingItem(null);
     setForm({
-      professor_user_id: professors[0]?.id || professors[0]?.user_id || '',
+      professor_user_id: professors[0]?.user_id || professors[0]?.id || '',
       course_name: '',
       course_code: '',
       branch: branches[0]?.code || '',
@@ -189,7 +189,7 @@ export default function ProfessorAssignments() {
           >
             <option value="all">All Professors</option>
             {professors.map(p => (
-              <option key={p.id || p.user_id} value={p.id || p.user_id}>
+              <option key={p.user_id || p.id} value={p.user_id || p.id}>
                 {p.name || p.full_name || p.email}
               </option>
             ))}
@@ -297,7 +297,7 @@ export default function ProfessorAssignments() {
                 >
                   <option value="" disabled>Select a professor...</option>
                   {professors.map(p => (
-                    <option key={p.id || p.user_id} value={p.id || p.user_id}>
+                    <option key={p.user_id || p.id} value={p.user_id || p.id}>
                       {p.name || p.full_name || p.email} ({p.department || 'Faculty'})
                     </option>
                   ))}
