@@ -35,14 +35,14 @@ import { Capacitor } from '@capacitor/core';
 import { storage } from './storage';
 
 export function getApiBaseUrl() {
-  if (typeof window === 'undefined') return 'https://projectcampusconnect.onrender.com';
+  if (typeof window === 'undefined') return 'https://api.campussconnect.me';
 
   if (import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
   }
 
-  // 1. Vercel deployment: relative URL uses vercel.json rewrites
-  if (window.location.hostname.includes('vercel.app')) {
+  // 1. Vercel deployment & custom domain: relative URL uses vercel.json rewrites
+  if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('campussconnect.me')) {
     return '';
   }
 
@@ -63,7 +63,7 @@ export function getApiBaseUrl() {
   }
 
   // 3. For Android APK, iOS native app, Capacitor WebView, and standalone mobile builds:
-  return 'https://projectcampusconnect.onrender.com';
+  return 'https://api.campussconnect.me';
 }
 
 export function getApiBase() {
@@ -71,7 +71,7 @@ export function getApiBase() {
   return url ? `${url}/api/v1` : '/api/v1';
 }
 
-export const API_URL = 'https://projectcampusconnect.onrender.com';
+export const API_URL = 'https://api.campussconnect.me';
 export const BASE = getApiBase();
 
 
