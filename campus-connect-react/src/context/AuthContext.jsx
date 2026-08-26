@@ -258,19 +258,32 @@ export function AuthProvider({ children }) {
   const [consentRequired, setConsentRequired] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setAuthLoading(false);
+    }, 1200);
+
     async function initAuth() {
       try {
         const raw = await storage.get(KEYS.USER);
-        if (!raw) return; // no stored session → nothing to restore
+        if (!raw) return;
 
-        const parsed = JSON.parse(raw);
+        let parsed = null;
+        try {
+          parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch (_) {}
+
+        if (!parsed) return;
+
         // Purge stale mock-data objects that snuck in from old offline builds
-        if (parsed && (parsed.classRank !== undefined || parsed.pendingTasks !== undefined)) {
+        if (parsed.classRank !== undefined || parsed.pendingTasks !== undefined) {
           await clearSession();
           return;
         }
 
-        // ── Proactive token refresh ─────────────────────────────────────────────
+        setUser(parsed);
+
+        // Proactive token check (non-blocking)
         const accessToken = await storage.get(KEYS.ACCESS);
         if (accessToken && accessToken !== 'mock-token' && isTokenExpiredSoon(accessToken)) {
           const refreshToken = await storage.get(KEYS.REFRESH);
@@ -282,53 +295,28 @@ export function AuthProvider({ children }) {
                 body: JSON.stringify({ refresh_token: refreshToken }),
               });
 
-
               if (res.ok) {
                 const data = await res.json();
-                await storage.set(KEYS.ACCESS,  data.access_token);
-                await storage.set(KEYS.TOKEN,   data.access_token); // legacy compat
+                await storage.set(KEYS.ACCESS, data.access_token);
+                await storage.set(KEYS.TOKEN, data.access_token);
                 if (data.refresh_token) await storage.set(KEYS.REFRESH, data.refresh_token);
-                if (data.consent_required) setConsentRequired(true);
-              } else {
-                await clearSession();
-                return;
               }
-            } catch {
-              // Network error on boot → keep session alive
-            }
-          } else {
-            await clearSession();
-            return;
-          }
-        }
-
-        if (parsed) {
-          // Re-fetch profile to pick up any changes since last session
-          const enriched = await fetchProfileEnrichment(parsed);
-          if (enriched !== parsed) {
-            await storage.set(KEYS.USER, JSON.stringify(enriched));
-          }
-          setUser(enriched);
-
-          // Check legal consent requirement
-          try {
-            const cRes = await authApi.getConsentStatus();
-            if (cRes && cRes.consent_required) {
-              setConsentRequired(true);
-            } else {
-              setConsentRequired(false);
-            }
-          } catch {
-            // offline fallback
+            } catch (_) {}
           }
         }
       } catch (err) {
-        console.error('Failed to init auth', err);
+        console.warn('Auth init notice:', err);
       } finally {
-        setAuthLoading(false);
+        if (isMounted) setAuthLoading(false);
+        clearTimeout(safetyTimer);
       }
     }
+
     initAuth();
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   // ── One-time boot migration: collapse legacy storage keys ─────────────────

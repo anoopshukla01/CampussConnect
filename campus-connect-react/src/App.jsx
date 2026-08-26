@@ -78,18 +78,21 @@ export default function App() {
   usePushNotifications();
   useDeepLinks();
 
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        PrivacyScreen.enable().catch(() => {});
-      } catch (e) {}
-    }
-  }, []);
-
   if (authLoading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="ad-spinner"></div>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100vw',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#090d16',
+        color: '#ffffff',
+        gap: '1rem',
+      }}>
+        <div className="ad-spinner" style={{ width: '40px', height: '40px', borderColor: 'rgba(99, 102, 241, 0.3)', borderTopColor: '#6366f1' }}></div>
+        <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>Loading Campus Connect...</span>
       </div>
     );
   }

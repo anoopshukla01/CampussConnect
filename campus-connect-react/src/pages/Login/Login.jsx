@@ -131,14 +131,15 @@ export default function Login() {
     if (tokenParam) { setInviteToken(tokenParam); setMode('accept_invite'); }
   }, [searchParams]);
 
-  /* ── Biometric Login ── */
-  const [canBiometric, setCanBiometric] = useState(false);
-
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
-      NativeBiometric.isAvailable().then(result => {
-        if (result.isAvailable) setCanBiometric(true);
-      });
+      try {
+        NativeBiometric.isAvailable()
+          .then(result => {
+            if (result && result.isAvailable) setCanBiometric(true);
+          })
+          .catch(() => {});
+      } catch (_) {}
     }
   }, []);
 
