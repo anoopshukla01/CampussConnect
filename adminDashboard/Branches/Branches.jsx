@@ -258,8 +258,8 @@ export default function Branches() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="ad-modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="ad-modal-box">
+        <div className="ad-modal-overlay open" onClick={() => setShowModal(false)}>
+          <div className="ad-modal" onClick={e => e.stopPropagation()}>
             <h3 className="ad-modal-title">{editingBranch ? 'Edit Branch' : 'Add New Branch'}</h3>
             <p className="ad-modal-sub">
               {editingBranch ? 'Modify branch details' : 'Add an academic branch to your college roster'}
@@ -267,15 +267,16 @@ export default function Branches() {
             <form onSubmit={handleSubmit}>
               <div className="ad-modal-fields">
                 <div className="ad-field">
-                  <label>Short Code (e.g. CSE, ECE, ME)</label>
+                  <label>Short Code (e.g. CSE, ECE, ME, BCA, MCA)</label>
                   <input
                     required
                     type="text"
                     maxLength={20}
-                    placeholder="e.g. CSE"
+                    placeholder="e.g. BCA"
                     value={form.code}
                     onChange={e => setForm({ ...form, code: e.target.value })}
                     className="ad-input"
+                    autoFocus
                   />
                 </div>
                 <div className="ad-field">
@@ -283,7 +284,7 @@ export default function Branches() {
                   <input
                     required
                     type="text"
-                    placeholder="e.g. Computer Science & Engineering"
+                    placeholder="e.g. Bachelor of Computer Applications"
                     value={form.name}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     className="ad-input"
