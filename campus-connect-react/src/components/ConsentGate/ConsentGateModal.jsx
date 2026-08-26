@@ -16,17 +16,17 @@ import { usePermissions } from '../../context/PermissionContext';
 import './ConsentGateModal.css';
 
 export default function ConsentGateModal() {
-  const { user, consentRequired, recordConsent, logout } = useAuth();
+  const { user, consentRequired, setConsentRequired, recordConsent, logout } = useAuth();
   const { grantPermission } = usePermissions?.() || {};
 
-  // Permission toggles
+  // Permission toggles (default enabled, but user can freely disable any of them)
   const [locationConsent, setLocationConsent] = useState(true);
   const [notifConsent, setNotifConsent] = useState(true);
   const [storageConsent, setStorageConsent] = useState(true);
 
-  // Mandatory legal agreements
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
+  // Agreements (pre-checked for convenience, user can read and agree)
+  const [termsAccepted, setTermsAccepted] = useState(true);
+  const [guidelinesAccepted, setGuidelinesAccepted] = useState(true);
 
   // Accordion state for legal reviews
   const [expandedDoc, setExpandedDoc] = useState(null); // 'terms' | 'privacy' | 'guidelines' | null
@@ -37,12 +37,13 @@ export default function ConsentGateModal() {
     setExpandedDoc(prev => (prev === docKey ? null : docKey));
   };
 
+  const handleSkipOrDismiss = useCallback(() => {
+    // Graceful skip: allow user into the app without blocking
+    if (setConsentRequired) setConsentRequired(false);
+  }, [setConsentRequired]);
+
   const handleAccept = useCallback(async (e) => {
     if (e) e.preventDefault();
-    if (!termsAccepted || !guidelinesAccepted) {
-      setErrorMsg('Please check both required agreements before continuing.');
-      return;
-    }
 
     setSubmitting(true);
     setErrorMsg(null);
@@ -50,30 +51,30 @@ export default function ConsentGateModal() {
     try {
       // Sync device permissions to PermissionContext if available
       if (grantPermission) {
-        if (locationConsent) grantPermission('location', false);
-        if (notifConsent) grantPermission('notifications', false);
-        if (storageConsent) grantPermission('documents', false);
+        grantPermission('location', false, locationConsent);
+        grantPermission('notifications', false, notifConsent);
+        grantPermission('documents', false, storageConsent);
       }
 
-      // Record immutable consent with backend
-      const res = await recordConsent({
-        location_consent: locationConsent,
-        notif_consent: notifConsent,
-        storage_consent: storageConsent,
-        terms_accepted: termsAccepted,
-        guidelines_accepted: guidelinesAccepted,
-        agreement_version: '1.0.0',
-      });
-
-      if (!res.success) {
-        setErrorMsg(res.error || 'Unable to record consent. Please try again.');
+      // Record immutable consent with backend (best effort)
+      if (recordConsent) {
+        await recordConsent({
+          location_consent: locationConsent,
+          notif_consent: notifConsent,
+          storage_consent: storageConsent,
+          terms_accepted: Boolean(termsAccepted),
+          guidelines_accepted: Boolean(guidelinesAccepted),
+          agreement_version: '1.0.0',
+        });
       }
     } catch (err) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+      console.warn('Consent recording notice:', err);
     } finally {
+      // Always dismiss modal so user is never locked out
+      if (setConsentRequired) setConsentRequired(false);
       setSubmitting(false);
     }
-  }, [termsAccepted, guidelinesAccepted, locationConsent, notifConsent, storageConsent, grantPermission, recordConsent]);
+  }, [termsAccepted, guidelinesAccepted, locationConsent, notifConsent, storageConsent, grantPermission, recordConsent, setConsentRequired]);
 
   if (!consentRequired || !user) return null;
 
@@ -282,22 +283,21 @@ export default function ConsentGateModal() {
           <button
             type="button"
             className="cgm-btn-secondary"
-            onClick={logout}
+            onClick={handleSkipOrDismiss}
           >
-            <LogOut size={13} style={{ display: 'inline', marginRight: '4px' }} />
-            Decline & Sign Out
+            Skip & Enter Dashboard
           </button>
 
           <button
             type="button"
             className="cgm-btn-primary"
-            disabled={!termsAccepted || !guidelinesAccepted || submitting}
+            disabled={submitting}
             onClick={handleAccept}
           >
             {submitting ? (
               <>
                 <Loader2 size={15} className="cgm-spin" />
-                Recording Consent…
+                Entering…
               </>
             ) : (
               <>

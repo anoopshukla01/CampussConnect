@@ -114,24 +114,34 @@ export function PermissionProvider({ children }) {
     setActivePrompt({ config, onGranted, onDenied });
   }, [permissions]);
 
-  const grantPermission = useCallback((key, sessionOnly = false) => {
+  const grantPermission = useCallback((key, sessionOnly = false, val = true) => {
     setPermissions(prev => {
-      const next = { ...prev, [key]: true };
+      const next = { ...prev, [key]: Boolean(val) };
       if (!sessionOnly) {
-        localStorage.setItem('cc_permissions', JSON.stringify(next));
+        try {
+          localStorage.setItem('cc_permissions', JSON.stringify(next));
+        } catch (_) {}
       }
       return next;
     });
 
     if (activePrompt && activePrompt.onGranted) {
-      activePrompt.onGranted();
+      try {
+        activePrompt.onGranted();
+      } catch (err) {
+        console.warn('grantPermission callback notice:', err);
+      }
     }
     setActivePrompt(null);
   }, [activePrompt]);
 
   const denyPermission = useCallback(() => {
     if (activePrompt && activePrompt.onDenied) {
-      activePrompt.onDenied();
+      try {
+        activePrompt.onDenied();
+      } catch (err) {
+        console.warn('denyPermission callback notice:', err);
+      }
     }
     setActivePrompt(null);
   }, [activePrompt]);
