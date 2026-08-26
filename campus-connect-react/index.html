@@ -19,11 +19,22 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
+      // Only register service worker in web browsers, never inside native APK WebView
+      if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform()) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          // If we are on native or troubleshooting, unregister stale workers
+          if (window.location.search.includes('clear-sw=1')) {
+            for (let reg of registrations) { reg.unregister(); }
+          }
+        });
+
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registered successfully!', reg))
-            .catch(err => console.error('Service Worker registration failed:', err));
+            .then(reg => {
+              // Automatically check for updates
+              reg.update();
+            })
+            .catch(() => {});
         });
       }
     </script>
