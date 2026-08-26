@@ -131,6 +131,9 @@ export default function Login() {
     if (tokenParam) { setInviteToken(tokenParam); setMode('accept_invite'); }
   }, [searchParams]);
 
+  /* ── Biometric Login ── */
+  const [canBiometric, setCanBiometric] = useState(false);
+
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       try {
