@@ -13,70 +13,60 @@ export function MobileBridgeProvider({ children }) {
   const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
-    // 1. Configure native status bar
-    const initStatusBar = async () => {
-      if (Capacitor.isNativePlatform() || Capacitor.isPluginAvailable('StatusBar')) {
-        try {
-          await StatusBar.setStyle({ style: Style.Dark });
-          await StatusBar.setBackgroundColor({ color: '#4338ca' });
-        } catch (err) {
-          console.warn('StatusBar initialization:', err);
-        }
-      }
-    };
-    initStatusBar();
-
-    // 2. Hardware back button handler for Android (Modal-aware)
     let backListenerHandle = null;
-    if (Capacitor.isNativePlatform() || Capacitor.isPluginAvailable('App')) {
-      CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-        // Check if any modal or overlay is open in the DOM
-        const activeModal = document.querySelector(
-          '.ad-modal-overlay.open, .id-card-modal-backdrop, .modal-overlay.active, [role="dialog"].open, .modal-backdrop'
-        );
-        if (activeModal) {
-          const closeBtn = activeModal.querySelector('button[aria-label*="close" i], button.btn-close, button.ad-btn-outline, .modal-close');
-          if (closeBtn) {
-            closeBtn.click();
-            return;
-          }
-        }
 
-        const path = location.pathname;
-        if (path === '/dashboard' || path === '/auth/login' || path === '/' || path === '/login') {
-          CapacitorApp.exitApp();
-        } else if (canGoBack) {
-          window.history.back();
-        } else {
-          navigate('/dashboard');
-        }
-      }).then(handle => {
-        backListenerHandle = handle;
-      }).catch(() => {});
-    }
-
-    // 3. Network listener for offline status
-    const setupNetwork = async () => {
+    if (Capacitor.isNativePlatform()) {
+      // 1. Configure native status bar
       try {
-        const status = await Network.getStatus();
-        setIsOnline(status.connected);
+        StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#4338ca' }).catch(() => {});
+      } catch (_) {}
+
+      // 2. Hardware back button handler for Android
+      try {
+        CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+          const activeModal = document.querySelector(
+            '.ad-modal-overlay.open, .id-card-modal-backdrop, .modal-overlay.active, [role="dialog"].open, .modal-backdrop'
+          );
+          if (activeModal) {
+            const closeBtn = activeModal.querySelector('button[aria-label*="close" i], button.btn-close, button.ad-btn-outline, .modal-close');
+            if (closeBtn) {
+              closeBtn.click();
+              return;
+            }
+          }
+
+          const path = location.pathname;
+          if (path === '/dashboard' || path === '/auth/login' || path === '/' || path === '/login') {
+            CapacitorApp.exitApp();
+          } else if (canGoBack) {
+            window.history.back();
+          } else {
+            navigate('/dashboard');
+          }
+        }).then(h => {
+          backListenerHandle = h;
+        }).catch(() => {});
+      } catch (_) {}
+
+      // 3. Network listener
+      try {
+        Network.getStatus().then(status => {
+          if (status) setIsOnline(status.connected);
+        }).catch(() => {});
 
         Network.addListener('networkStatusChange', (status) => {
-          setIsOnline(status.connected);
-        });
-      } catch (err) {
-        console.warn('Network listener setup:', err);
-      }
-    };
-    setupNetwork();
+          if (status) setIsOnline(status.connected);
+        }).catch(() => {});
+      } catch (_) {}
+    }
 
     return () => {
-      if (backListenerHandle) {
-        backListenerHandle.remove();
+      if (backListenerHandle && typeof backListenerHandle.remove === 'function') {
+        try {
+          backListenerHandle.remove();
+        } catch (_) {}
       }
-      try {
-        Network.removeAllListeners();
-      } catch (e) {}
     };
   }, [location.pathname, navigate]);
 

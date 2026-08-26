@@ -154,5 +154,12 @@ export function PermissionProvider({ children }) {
 }
 
 export function usePermissions() {
-  return useContext(PermissionContext);
+  const ctx = useContext(PermissionContext);
+  return ctx || {
+    permissions: {},
+    requestPermission: () => {},
+    activePrompt: null,
+    grantPermission: () => {},
+    denyPermission: () => {},
+  };
 }
