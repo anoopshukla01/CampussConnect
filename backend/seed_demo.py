@@ -51,7 +51,7 @@ COLLEGE_CODE = "IERT2025"
 BRANCH = "Computer Science"
 BRANCHES = ["Computer Science", "CT"]
 SEMESTER = 6
-DEMO_PASSWORD = "Campus@123"
+DEMO_PASSWORD = "Password1234"
 
 
 # IERT Allahabad coordinates (main block geofence)

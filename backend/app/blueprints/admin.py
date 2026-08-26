@@ -959,7 +959,7 @@ def import_students_csv():
                     phone = f"90000{str((abs(hash(roll_no)) + counter) % 100000).zfill(5)}"
                     counter += 1
 
-            default_initial_password = raw_password or f"Campus@{roll_no}"
+            default_initial_password = raw_password or "Password1234"
 
             # Check if student already exists in this college by roll number
             existing_profile = db.session.query(StudentProfile).filter_by(
@@ -993,9 +993,8 @@ def import_students_csv():
                         user.email = email
                     if not user.phone:
                         user.phone = phone
-                    if not user.password_hash:
-                        user.set_password(default_initial_password)
-                        user.must_change_password = True
+                    user.set_password(default_initial_password)
+                    user.must_change_password = True
                     user.is_active = True
 
                 existing_user_emails.add(user.email.lower() if user.email else "")

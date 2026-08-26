@@ -31,7 +31,7 @@ load_dotenv()
 from app import create_app
 from app.extensions import db
 
-DEMO_PASSWORD = "Test@Verify24"
+DEMO_PASSWORD = "Password1234"
 COLLEGE_CODE  = "TESTCOL24"
 COLLEGE_NAME  = "CampusConnect Test College"
 RESULTS       = {}

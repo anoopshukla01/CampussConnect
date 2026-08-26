@@ -7,6 +7,7 @@ import { sendOtp, verifyOtp } from '../../lib/auth/otp';
 import { auth } from '../../config/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { BASE, getApiBase } from '../../services/api';
 import './Login.css';
@@ -167,7 +168,9 @@ export default function Login() {
 
     // Haptic feedback on button press
     if (Capacitor.isNativePlatform()) {
-      Haptics.impact({ style: ImpactStyle.Medium });
+      try {
+        Haptics.impact({ style: ImpactStyle.Medium });
+      } catch (_) {}
     }
 
     let ok = true;
@@ -185,7 +188,9 @@ export default function Login() {
     setLoading(false);
     if (result && result.success) {
       if (Capacitor.isNativePlatform()) {
-        Haptics.notification({ type: 'SUCCESS' });
+        try {
+          Haptics.notification({ type: NotificationType.Success });
+        } catch (_) {}
       }
       showToast(`Welcome back, ${result.user.name || 'User'}!`, 'success', 2000);
       setTimeout(() => navigate('/'), 800);

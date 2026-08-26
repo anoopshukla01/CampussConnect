@@ -23,7 +23,7 @@ load_dotenv()
 from app import create_app
 from app.extensions import db
 
-DEMO_PASSWORD = "Demo@Campus24"
+DEMO_PASSWORD = "Password1234"
 
 
 def run():
@@ -33,24 +33,27 @@ def run():
     with app.app_context():
         from app.models.user import User, UserRole
 
-        students = User.query.filter_by(role=UserRole.STUDENT).all()
+        users = User.query.filter(User.role != UserRole.ADMIN).all()
 
-        if not students:
-            print("No student accounts found in the database.")
+        if not users:
+            print("No non-admin accounts found in the database.")
             return
 
-        print(f"\nSetting demo password for {len(students)} student account(s)...\n")
+        print(f"\nSetting demo password ({DEMO_PASSWORD}) for {len(users)} non-admin account(s)...\n")
 
-        for u in students:
+        for u in users:
             u.set_password(DEMO_PASSWORD)
-            label = u.email or f"(no email — user_id={u.id})"
-            print(f"  ok  {label}")
+            u.failed_login_attempts = 0
+            u.locked_until = None
+            u.is_active = True
+            label = u.email or f"(no email — user_id={u.id}, role={u.role.value})"
+            print(f"  ok  [{u.role.value}] {label}")
 
         db.session.commit()
 
-        print(f"\nDone. {len(students)} student(s) can now log in with:")
+        print(f"\nDone. {len(users)} user(s) can now log in with:")
         print(f"    Password : {DEMO_PASSWORD}")
-        print( "    Login    : use their email address OR roll number\n")
+        print( "    Login    : email address or roll number\n")
 
 
 if __name__ == "__main__":

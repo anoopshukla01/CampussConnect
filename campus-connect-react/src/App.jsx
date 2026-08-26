@@ -58,8 +58,8 @@ import AdminStudentDetail     from '@admin/StudentDetail/StudentDetail';
 import TPOStudentDetail       from '@placement/StudentDetail/StudentDetail';
 import ProfStudentDetail      from './pages/professorDashboard/StudentDetail/StudentDetail';
 import StudentSelfView        from './pages/StudentDetail/StudentDetail';
-import { PermissionModal } from './components/PermissionModal/PermissionModal';
 import ConsentGateModal from './components/ConsentGate/ConsentGateModal';
+import ForcePasswordChangeModal from './components/ForcePasswordChange/ForcePasswordChangeModal';
 import CampusCopilot from './components/chatbot/CampusCopilot';
 import { MobileBridgeProvider } from './components/mobile/MobileBridgeProvider';
 import { usePushNotifications } from './hooks/usePushNotifications';
@@ -184,6 +184,9 @@ export default function App() {
 
       {/* Mandatory Permissions, User Guide & Legal Consent Gate */}
       <ConsentGateModal />
+
+      {/* Force Password Change on First Login */}
+      <ForcePasswordChangeModal />
 
       {/* Floating AI Copilot Assistant */}
       {user && <CampusCopilot />}
