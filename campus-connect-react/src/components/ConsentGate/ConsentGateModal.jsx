@@ -197,7 +197,7 @@ export default function ConsentGateModal() {
                 {expandedDoc === 'terms' && (
                   <div className="cgm-accordion-body">
                     <p>
-                      By accessing Campus Connect, you agree to maintain complete academic integrity. Proxy attendance, unauthorized material distribution, tampering with timetable records, or sharing account credentials will lead to immediate disciplinary actions by the university administration.
+                      By accessing Campuss Connect, you agree to maintain complete academic integrity. Proxy attendance, unauthorized material distribution, tampering with timetable records, or sharing account credentials will lead to immediate disciplinary actions by the university administration.
                     </p>
                   </div>
                 )}
@@ -229,13 +229,13 @@ export default function ConsentGateModal() {
                   className="cgm-accordion-header"
                   onClick={() => toggleDoc('guidelines')}
                 >
-                  <span>Campus Connect User Guidelines & Community Conduct</span>
+                  <span>Campuss Connect User Guidelines & Community Conduct</span>
                   {expandedDoc === 'guidelines' ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                 </button>
                 {expandedDoc === 'guidelines' && (
                   <div className="cgm-accordion-body">
                     <p>
-                      Campus Connect channels, marketplace listings, and discussion boards must remain professional, respectful, and free from harassment or spam. Violations may result in feature suspension.
+                      Campuss Connect channels, marketplace listings, and discussion boards must remain professional, respectful, and free from harassment or spam. Violations may result in feature suspension.
                     </p>
                   </div>
                 )}
@@ -264,7 +264,7 @@ export default function ConsentGateModal() {
                 onChange={(e) => setGuidelinesAccepted(e.target.checked)}
               />
               <span>
-                I agree to abide by the <strong>Campus Connect User Guidelines & Honor Code</strong>.
+                I agree to abide by the <strong>Campuss Connect User Guidelines & Honor Code</strong>.
               </span>
             </label>
           </div>
@@ -301,7 +301,7 @@ export default function ConsentGateModal() {
               </>
             ) : (
               <>
-                Accept & Enter Campus Connect
+                Accept & Enter Campuss Connect
                 <ArrowRight size={15} />
               </>
             )}

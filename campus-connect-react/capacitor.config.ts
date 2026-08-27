@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.college.campusconnect',
-  appName: 'Campus Connect',
+  appName: 'Campuss Connect',
   webDir: 'dist',
   plugins: {
     SplashScreen: {

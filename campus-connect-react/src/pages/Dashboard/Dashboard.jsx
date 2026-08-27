@@ -303,7 +303,7 @@ export default function Dashboard() {
             </>
           ) : (
             <>
-              <h3 className="insight-title" id="insightTitle">Welcome to Campus Connect!</h3>
+              <h3 className="insight-title" id="insightTitle">Welcome to Campuss Connect!</h3>
               <p className="insight-body">Your course timetable, attendance logs, and gradebook will update automatically once assigned to your academic department roster.</p>
             </>
           )}

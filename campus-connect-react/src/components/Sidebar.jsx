@@ -208,7 +208,7 @@ export default function Sidebar({ activePage, sidebarOpen, setSidebarOpen }) {
             </svg>
           </div>
           <div className="brand-text">
-            <span className="brand-name">Campus Connect</span>
+            <span className="brand-name">Campuss Connect</span>
             <span className="brand-sub">{isAdmin ? 'Admin Portal' : isProf ? 'Professor Portal' : isTPO ? 'TPO Portal' : 'Learner portal'}</span>
           </div>
         </div>

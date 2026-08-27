@@ -92,7 +92,7 @@ export default function App() {
         gap: '1rem',
       }}>
         <div className="ad-spinner" style={{ width: '40px', height: '40px', borderColor: 'rgba(99, 102, 241, 0.3)', borderTopColor: '#6366f1' }}></div>
-        <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>Loading Campus Connect...</span>
+        <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>Loading Campuss Connect...</span>
       </div>
     );
   }

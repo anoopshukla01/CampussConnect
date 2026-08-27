@@ -149,7 +149,7 @@ export default function Login() {
   async function handleBiometricLogin() {
     try {
       const verified = await NativeBiometric.verifyIdentity({
-        reason: "Log in to Campus Connect",
+        reason: "Log in to Campuss Connect",
         title: "Biometric Login",
         subtitle: "Use Fingerprint or Face ID",
         description: "Quickly access your student dashboard",
@@ -422,7 +422,7 @@ export default function Login() {
   }
 
   const TITLES = {
-    login: 'Sign in to Campus Connect',
+    login: 'Sign in to Campuss Connect',
     claim_student: 'Claim Student Account',
     accept_invite: 'Accept Staff Invitation',
   };

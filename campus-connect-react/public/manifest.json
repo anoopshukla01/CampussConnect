@@ -1,6 +1,6 @@
 {
-  "name": "Campus Connect",
-  "short_name": "CampusConnect",
+  "name": "Campuss Connect",
+  "short_name": "CampussConnect",
   "description": "Unified Campus Ecosystem for academics, community, and placement.",
   "start_url": "/",
   "display": "standalone",
